@@ -12,5 +12,8 @@ dependencies = []
 [project.scripts]
 railmail = "railmail.__main__:main"
 
+[project.gui-scripts]
+railmail-gui = "railmail.gui:main"
+
 [tool.setuptools.packages.find]
 include = ["railmail*"]
