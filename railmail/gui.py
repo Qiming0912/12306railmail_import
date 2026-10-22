@@ -269,7 +269,7 @@ class RailMailWindow(ttk.Frame):
         tabs = ttk.Notebook(lower)
         tabs.pack(fill='both', expand=True, pady=(10, 0))
         texts = []
-        for label in ['票务详情', '原始邮件', '历史版本 / 人工修正']:
+        for label in ['票务详情', '邮件正文', '历史版本 / 人工修正']:
             tab = ttk.Frame(tabs)
             tabs.add(tab, text=label)
             texts.append(self._text(tab))
@@ -279,7 +279,7 @@ class RailMailWindow(ttk.Frame):
     def _import_page(self):
         parent = self.pages['import']
         ttk.Label(parent, text='导入邮件', font=('TkDefaultFont', 15, 'bold')).pack(anchor='w', pady=(0, 8))
-        ttk.Label(parent, text='支持 EML、ZIP 及文件夹递归读取。重复邮件跳过，原始邮件保存在数据库中。', wraplength=780).pack(anchor='w')
+        ttk.Label(parent, text='支持 EML、ZIP 及文件夹递归读取。只保存必要邮件头和精简正文，不保存完整 EML。', wraplength=780).pack(anchor='w')
         actions = ttk.Frame(parent)
         actions.pack(fill='x', pady=12)
         for label, command in [('选择 EML / ZIP', self.add_files), ('选择文件夹', self.add_folder), ('移除选中', self.remove_source), ('清空列表', self.clear_sources)]:
@@ -295,12 +295,15 @@ class RailMailWindow(ttk.Frame):
         self.batch_tree = self._table(parent, [('id','批次',60), ('started_at','开始时间（UTC）',220),
             ('finished_at','结束时间（UTC）',220), ('summary','处理统计',550)], height=5)
         self.import_errors = self._text(parent)
-        self.task_buttons.append(self._button(parent, '重新解析数据库全部邮件', self.reparse, anchor='e', pady=(8, 0)))
+        tools = ttk.Frame(parent)
+        tools.pack(fill='x', pady=(8, 0))
+        self.task_buttons.append(self._button(tools, '清理旧库并压缩空间', self.compact, side='left'))
+        self.task_buttons.append(self._button(tools, '重新解析数据库全部邮件', self.reparse, side='right'))
 
     def _issues_page(self):
         parent = self.pages['issues']
         ttk.Label(parent, text='待核对', font=('TkDefaultFont', 15, 'bold')).pack(anchor='w', pady=(0, 8))
-        ttk.Label(parent, text='选中问题查看原文。标记已处理只关闭问题，不会自动修改票务数据。', wraplength=780).pack(anchor='w', pady=(0, 8))
+        ttk.Label(parent, text='选中问题查看精简正文。标记已处理只关闭问题，不会自动修改票务数据。', wraplength=780).pack(anchor='w', pady=(0, 8))
         self.issue_tree = self._table(parent, [('code','问题',150), ('email_id','邮件ID',70), ('detail','说明',650)], height=6)
         self.issue_tree.bind('<<TreeviewSelect>>', self.select_issue)
         self.issue_text = self._text(parent)
@@ -603,8 +606,14 @@ class RailMailWindow(ttk.Frame):
     def reparse(self):
         if not self.require_db():
             return
-        if messagebox.askyesno('重新解析', '重新解析全部原始邮件？旧快照会保留，人工修正不会覆盖，待核对问题将重新生成。', parent=self.root):
+        if messagebox.askyesno('重新解析', '重新解析已存正文？旧库完整 EML 将清理，人工修正会保留，待核对问题将重新生成。', parent=self.root):
             self.run_task('重新解析', lambda app: {'reparsed':app.reparse_emails()})
+
+    def compact(self):
+        if not self.require_db():
+            return
+        if messagebox.askyesno('清理旧库并压缩', '将删除数据库内的完整 EML，仅保留温馨提示前的正文和必要邮件头，并压缩空间。\n\n此操作不会删除邮箱或磁盘上的邮件。请确认原始邮件已另行保留。', parent=self.root):
+            self.run_task('清理数据库', lambda app: {'compacted':app.compact_database()})
 
     def reparse_selected(self):
         ids = self.issue_tree.selection()
@@ -652,6 +661,10 @@ class RailMailWindow(ttk.Frame):
                                 self.status.set(label+'完成 · '+summary)
                             elif 'exported' in result:
                                 self.status.set('已导出 %s 条记录到 %s' % (result['exported'],result['path']))
+                            elif 'compacted' in result:
+                                sizes = result['compacted']
+                                self.status.set('清理完成：%s 封邮件；数据库 %.2f MB → %.2f MB' % (
+                                    sizes['emails'], sizes['bytes_before']/1048576, sizes['bytes_after']/1048576))
                             else:
                                 self.status.set('重新解析完成：%s 封邮件' % result['reparsed'])
                         except Exception as exc:

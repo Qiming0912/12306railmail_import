@@ -19,7 +19,8 @@ def main(argv=None):
             command.add_argument('--force', action='store_true')
     sub.add_parser('issues', help='查看待核对问题')
     sub.add_parser('notifications', help='查看通知与非车票邮件')
-    rep = sub.add_parser('reparse', help='重新解析原始邮件，保护人工修正')
+    sub.add_parser('compact', help='清理旧库完整EML、裁剪正文并压缩数据库')
+    rep = sub.add_parser('reparse', help='重新解析已存正文，保护人工修正')
     rep.add_argument('--email-id', type=int, action='append')
     hist = sub.add_parser('history')
     hist.add_argument('ticket_id', type=int)
@@ -39,6 +40,8 @@ def main(argv=None):
                 result = app.list_issues()
             elif args.command == 'notifications':
                 result = app.list_notifications()
+            elif args.command == 'compact':
+                result = app.compact_database()
             elif args.command == 'history':
                 result = app.ticket_history(args.ticket_id)
             elif args.command == 'update':

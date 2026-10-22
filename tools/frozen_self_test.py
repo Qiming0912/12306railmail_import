@@ -23,7 +23,8 @@ def run(report_path):
             mail['Date'] = 'Mon, 06 Apr 2015 12:00:00 +0800'
             mail.set_content('您于2015年04月06日成功购买了2张车票，票款共计144.00元，订单号码E000000001。'
                 ' 1.张三,2015年04月08日10:40开,唐山—北京南,D6792次列车,07车04B号,二等座,票价72.00元。'
-                ' 2.李四,2015年04月08日10:40开,唐山—北京南,D6792次列车,07车04C号,二等座,票价72.00元。')
+                ' 2.李四,2015年04月08日10:40开,唐山—北京南,D6792次列车,07车04C号,二等座,票价72.00元。'
+                ' 温馨提示：不应保存在数据库中的多余说明。')
             source = folder / 'mail.eml'
             source.write_bytes(mail.as_bytes())
             (folder / 'empty.eml').write_bytes(b'')
@@ -45,6 +46,9 @@ def run(report_path):
             assert len(window.rows) == 2
             assert len(window.issues) == 1 and len(window.notices) == 1
             assert '07车' in window.source_text.get('1.0', 'end')
+            assert '温馨提示' not in window.source_text.get('1.0', 'end')
+            with RailMail(folder / 'check.sqlite') as app:
+                assert app.get_email(1)['raw'] == b''
             result['checks'].append('GUI / Tk resources / SQLite / mail decoding / background import')
             window.start_import()
             wait()
@@ -60,6 +64,10 @@ def run(report_path):
             wait()
             assert '张三' in (folder / 'result.csv').read_text(encoding='utf-8-sig')
             result['checks'].append('Filtering / background CSV export')
+            window.run_task('清理数据库', lambda app: {'compacted':app.compact_database()})
+            wait()
+            assert len(window.rows) == 1
+            result['checks'].append('Trimmed body / no full EML stored / database compaction')
             with RailMail(folder / 'check.sqlite') as app:
                 assert app.repository.connection.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
             window.close()

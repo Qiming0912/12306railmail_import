@@ -1,7 +1,7 @@
 """Public API shared by CLI and future GUI."""
 import csv
 import json
-from .parser import decode_email, parse_email, PARSER_VERSION
+from .parser import decode_email, parse_email, clean_body, PARSER_VERSION
 from .reader import iter_sources
 from .repository import Repository, dumps, now
 
@@ -41,7 +41,7 @@ class RailMail:
                     mail = decode_email(raw)
                     result = parse_email(mail)
                 except Exception as exc:
-                    # Keep failed source bytes for future parser fixes, not merely its filename.
+                    # Keep the source fingerprint and error, not the original EML bytes.
                     import hashlib
                     mail = dict(raw_hash=hashlib.sha256(raw).hexdigest(), subject='',
                                 sent_at='', raw_date='', body='', message_id='')
@@ -53,7 +53,7 @@ class RailMail:
                         stats['duplicate'] += 1
                     else:
                         email_id = c.execute('''INSERT INTO email(raw_hash,raw,subject,sent_at,raw_date,body,message_id)
-                          VALUES(?,?,?,?,?,?,?)''', (mail['raw_hash'], raw, mail['subject'], mail['sent_at'],
+                          VALUES(?,?,?,?,?,?,?)''', (mail['raw_hash'], b'', mail['subject'], mail['sent_at'],
                                                      mail['raw_date'], mail['body'], mail['message_id'])).lastrowid
                         self.repository.store_parse(email_id, mail, result, PARSER_VERSION)
                         stats['imported'] += 1
@@ -104,12 +104,24 @@ class RailMail:
         for email_id in ids:
             with c:
                 stored = self.get_email(email_id)
-                mail = decode_email(stored['raw'])
-                # Persist refreshed decoding as well as refreshed ticket fields.
-                c.execute('UPDATE email SET subject=?,sent_at=?,raw_date=?,body=?,message_id=? WHERE id=?',
-                          (mail['subject'], mail['sent_at'], mail['raw_date'], mail['body'], mail['message_id'], email_id))
+                # Legacy databases may still contain full EML. Decode it once, then
+                # discard those bytes; subsequent parses use the stored clean text.
+                mail = decode_email(stored['raw']) if stored['raw'] else dict(stored)
+                mail['body'] = clean_body(mail['body'])
+                c.execute('UPDATE email SET raw=?,subject=?,sent_at=?,raw_date=?,body=?,message_id=? WHERE id=?',
+                          (b'', mail['subject'], mail['sent_at'], mail['raw_date'], mail['body'], mail['message_id'], email_id))
                 self.repository.store_parse(email_id, mail, parse_email(mail), PARSER_VERSION)
         return len(ids)
+
+    def compact_database(self):
+        """Clean legacy messages and release unused SQLite pages. No outer transaction."""
+        from pathlib import Path
+        c = self.repository.connection
+        path = Path(c.execute('PRAGMA database_list').fetchone()[2])
+        before = path.stat().st_size
+        count = self.reparse_emails()
+        c.execute('VACUUM')
+        return {'emails': count, 'bytes_before': before, 'bytes_after': path.stat().st_size}
 
     def export_csv(self, output_path, filters=None, overwrite=False):
         from pathlib import Path

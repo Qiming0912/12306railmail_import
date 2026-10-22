@@ -9,7 +9,7 @@ from email.parser import BytesParser
 from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
 
-PARSER_VERSION = '1'
+PARSER_VERSION = '2'
 FIELDS = ('passenger', 'travel_date', 'departure_time', 'train', 'origin',
           'destination', 'seat', 'seat_class', 'ticket_kind', 'fare',
           'refund_fee', 'refund_amount', 'gate', 'notes', 'raw_ticket')
@@ -50,6 +50,12 @@ def _find(pattern, text):
     return match.group(1) if match else ''
 
 
+def clean_body(text):
+    """Keep useful message text only; do not persist the boilerplate footer."""
+    text = re.sub(r'\s+', ' ', html.unescape(text)).strip()
+    return re.split(r'温\s*馨\s*提\s*示', text, maxsplit=1)[0].rstrip()
+
+
 def _text(part):
     raw = part.get_payload(decode=True) or b''
     for encoding in (part.get_content_charset(), 'utf-8', 'gb18030', 'big5'):
@@ -77,7 +83,7 @@ def decode_email(raw):
             value = ''.join(extractor.parts)
         value = re.sub(r'\s+', ' ', html.unescape(value)).strip()
         if value:
-            body = value
+            body = clean_body(value)
             break
     stamp = ''
     try:

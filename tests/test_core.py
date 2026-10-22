@@ -124,6 +124,53 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(c.execute('SELECT count(*) FROM ticket_version WHERE active=1').fetchone()[0],1)
         self.assertEqual(c.execute('PRAGMA integrity_check').fetchone()[0],'ok')
 
+    def test_four_ticket_html_footer_not_stored(self):
+        m = EmailMessage();m['Subject']='网上购票系统-用户支付通知'
+        m['Date']='Thu, 13 Aug 2026 12:00:00 +0800'
+        head='您于2026年08月13日成功购买了4张车票，票款共计15.00元，订单号码E000000002。'
+        lines=[]
+        for i, (name, fare) in enumerate([('张三','5.0'),('李四','5.0'),('王五','2.5'),('赵六','2.5')],1):
+            lines.append('<td><b>%s.%s，2026年08月13日18:48开，临潼站-西安站，7005次列车，6车无座，硬座，票价%s元，电子客票。</b></td>' % (i,name,fare))
+        m.set_content('<p>'+head+'</p><table><tr>'+''.join(lines)+'</tr></table>'
+                      '<a>温馨提示</a>温馨提示<p>FOOTER_SHOULD_NOT_BE_STORED</p>',subtype='html')
+        raw=m.as_bytes()
+        path=self.put('four.eml',raw)
+        self.app.import_sources([path])
+        self.assertEqual(len(self.app.query_tickets()),4)
+        saved=self.app.get_email(1)
+        self.assertNotIn('温馨提示',saved['body'])
+        self.assertNotIn('FOOTER_SHOULD_NOT_BE_STORED',saved['body'])
+        self.assertEqual(saved['raw'],b'')
+        self.assertEqual(self.app.import_sources([path])['duplicate'],1)
+        self.app.reparse_emails()
+        self.assertEqual(len(self.app.query_tickets()),4)
+        self.assertEqual(path.read_bytes(),raw)
+
+    def test_compact_legacy_database_removes_raw_and_releases_space(self):
+        m=EmailMessage();m['Subject']='网上购票系统-用户改签通知'
+        m['Date']='Wed, 01 Apr 2015 12:00:00 +0800'
+        useful=decode_email(message())['body']
+        m.set_content(useful+' 温馨提示 '+('BOILERPLATE '*20000))
+        raw=m.as_bytes()
+        self.app.import_sources([self.put('legacy.eml',raw)])
+        c=self.app.repository.connection
+        with c:c.execute('UPDATE email SET raw=?,body=? WHERE id=1',(raw,useful+' 温馨提示 OLD_FOOTER'))
+        before=self.app.query_tickets()
+        sizes=self.app.compact_database()
+        self.assertLess(sizes['bytes_after'],sizes['bytes_before'])
+        self.assertEqual(self.app.get_email(1)['raw'],b'')
+        self.assertNotIn('温馨提示',self.app.get_email(1)['body'])
+        self.assertEqual(self.app.query_tickets(),before)
+        self.assertEqual(c.execute('PRAGMA integrity_check').fetchone()[0],'ok')
+
+    def test_notification_footer_removed_and_no_marker_preserved(self):
+        m=EmailMessage();m['Subject']='网上购票系统-候补订单退单通知'
+        m.set_content('候补订单号码E000000003。温 馨 提 示：多余说明。')
+        self.app.import_sources([self.put('notice.eml',m.as_bytes())])
+        self.assertEqual(self.app.list_notifications()[0]['detail'],'候补订单号码E000000003。')
+        m.set_content('一段没有提示标题的通知。')
+        self.assertEqual(decode_email(m.as_bytes())['body'],'一段没有提示标题的通知。')
+
 
 if __name__ == '__main__':
     unittest.main()
