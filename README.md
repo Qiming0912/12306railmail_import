@@ -9,7 +9,7 @@ Python 3.9+，Windows / Linux，运行仅需标准库。GUI 与可执行文件�
 ```bash
 python -m railmail --db tickets.sqlite import 邮件.zip
 python -m railmail --db tickets.sqlite import /path/to/emails other.zip
-python -m railmail --db tickets.sqlite query --passenger 戴启明
+python -m railmail --db tickets.sqlite query --passenger 张三
 python -m railmail --db tickets.sqlite export -o tickets.csv
 python -m railmail --db tickets.sqlite export --date-from 2015-01-01 --date-to 2015-12-31 -o 2015.csv
 python -m railmail --db tickets.sqlite issues
@@ -29,7 +29,7 @@ from railmail import RailMail
 
 with RailMail('tickets.sqlite') as app:
     result = app.import_sources(['邮件.zip'], progress=lambda summary: print(summary))
-    rows = app.query_tickets({'passenger': '戴启明'})
+    rows = app.query_tickets({'passenger': '张三'})
     count = app.export_csv('tickets.csv')
     # app.update_ticket(ticket_id, {'seat': '07车04B号'}, reason='核对原文')
     # app.reparse_emails([email_id])
@@ -60,8 +60,8 @@ with RailMail('tickets.sqlite') as app:
 ## 关键 SQL
 
 ```sql
-SELECT * FROM ticket_event WHERE kind='购票' AND passenger='戴启明' AND order_no='EC04731598';
-SELECT * FROM ticket_version WHERE kind='改签' AND passenger='戴启明' AND order_no='EC04731598' ORDER BY business_time;
+SELECT * FROM ticket_event WHERE kind='购票' AND passenger='张三' AND order_no='EC04731598';
+SELECT * FROM ticket_version WHERE kind='改签' AND passenger='张三' AND order_no='EC04731598' ORDER BY business_time;
 SELECT * FROM parse_issue WHERE resolved=0;
 ```
 
