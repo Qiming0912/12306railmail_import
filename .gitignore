@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+railmail-test-*/
+
+# Local email archives and personal data
+*.eml
+*.msg
+*.pst
+*.mbox
+*.zip
+*.sqlite*
+*.db
+*.db-*
+*.csv
+data/
+exports/
+
+# Local settings and secrets
+.env
+.env.*
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

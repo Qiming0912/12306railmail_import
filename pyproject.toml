@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "railmail-core"
+version = "0.1.0"
+description = "Cross-platform 12306 email archive, SQLite and CSV core"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+railmail = "railmail.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["railmail*"]
