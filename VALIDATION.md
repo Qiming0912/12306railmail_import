@@ -1,5 +1,13 @@
 # 验证记录
 
+## Windows EXE 构建验证
+
+构建环境：Windows 11 x64、Python 3.12.14、PyInstaller 6.22.3。
+分别生成窗口模式文件夹版和单文件版，均在清除 PYTHONPATH、PYTHONHOME、TCL_LIBRARY、TK_LIBRARY 后运行内置自检，退出码 0，报告 ok=true。
+验证 Tcl/Tk 资源、窗口创建、SQLite、新旧格式邮件解析、后台导入、重复导入、筛选和后台 CSV 导出。
+自检数据为临时生成的张三/李四示例邮件，完成后删除，不包含个人数据库。
+EXE 只在当前 Windows 11 x64 环境验证，未在独立无 Python 的干净机器或 Windows 10 上测试。
+
 执行环境：Windows，Python 3.12。核心要求 Python 3.9+，仅使用标准库；尚未在 Linux 主机实际执行。
 
 ## GUI 第一版验证

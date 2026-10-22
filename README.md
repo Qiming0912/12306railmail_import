@@ -1,6 +1,31 @@
 # 12306 邮件整理核心
 
-Python 3.9+，Windows / Linux，核心仅需标准库。已提供 Tkinter/ttk 桌面 GUI，可执行文件打包尚未包含。
+Python 3.9+，Windows / Linux，核心仅需标准库。提供 Tkinter/ttk 桌面 GUI，以及 Windows x64 EXE 的构建脚本。
+
+## Windows EXE
+
+Windows x64 免安装版为 `RailMail.exe`，无需安装 Python。解压发布包后双击运行，先新建或打开数据库，再导入邮件。
+SQLite 数据库由用户选择保存位置，独立于程序文件。更新 EXE 不会更改已有数据库；请不要将数据库放在程序的临时解压目录。
+当前版本尚未记住上次打开的数据库，下次启动需要重新选择。没有安装器、自动更新或代码签名。
+
+在 Windows 上自行构建（建议 Python 3.12 x64，包含 Tkinter）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/build_windows.ps1
+# 先生成文件夹版本做排查
+powershell -ExecutionPolicy Bypass -File tools/build_windows.ps1 -OneDir
+```
+
+构建脚本会在项目内创建独立 `.build-venv`，构建依赖固定在 `requirements-build.txt`。
+默认输出 `dist/RailMail.exe`；`-OneDir` 输出 `dist/RailMail/RailMail.exe`，文件夹版需携带整个目录。
+
+可对构建后的程序进行自检，生成指定位置的 JSON 报告：
+
+```powershell
+& .\dist\RailMail.exe --self-test .\build\self-test.json
+```
+
+自检使用临时生成的虚构邮件，检查窗口组件、SQLite、后台导入、重复导入、筛选和 CSV 导出，不读取用户数据库。
 
 ## 启动桌面界面
 
