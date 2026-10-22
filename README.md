@@ -87,8 +87,8 @@ with RailMail('tickets.sqlite') as app:
 ## 关键 SQL
 
 ```sql
-SELECT * FROM ticket_event WHERE kind='购票' AND passenger='张三' AND order_no='EC04731598';
-SELECT * FROM ticket_version WHERE kind='改签' AND passenger='张三' AND order_no='EC04731598' ORDER BY business_time;
+SELECT * FROM ticket_event WHERE kind='购票' AND passenger='张三' AND order_no='E000000001';
+SELECT * FROM ticket_version WHERE kind='改签' AND passenger='张三' AND order_no='E000000001' ORDER BY business_time;
 SELECT * FROM parse_issue WHERE resolved=0;
 ```
 
